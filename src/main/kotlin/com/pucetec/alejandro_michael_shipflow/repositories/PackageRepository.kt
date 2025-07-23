@@ -5,4 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Repository
 
 @Repository
-interface PackageRepository: JpaRepository<ShippingPackage, Long>
+interface PackageRepository : JpaRepository<ShippingPackage, Long> {
+    fun findByTrackingId(trackingId: String): ShippingPackage?
+}

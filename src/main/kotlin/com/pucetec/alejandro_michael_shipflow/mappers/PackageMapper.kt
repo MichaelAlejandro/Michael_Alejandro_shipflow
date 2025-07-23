@@ -1,23 +1,28 @@
 package com.pucetec.alejandro_michael_shipflow.mappers
 
 import com.pucetec.alejandro_michael_shipflow.models.entities.ShippingPackage
-import com.pucetec.alejandro_michael_shipflow.models.requests.PackageRequest
+import com.pucetec.alejandro_michael_shipflow.models.entities.Status
+import com.pucetec.alejandro_michael_shipflow.models.requests.CreatePackageRequest
+import com.pucetec.alejandro_michael_shipflow.models.responses.PackageEventResponse
 import com.pucetec.alejandro_michael_shipflow.models.responses.PackageResponse
 import org.springframework.stereotype.Component
+import java.util.UUID
 
 @Component
-open class PackageMapper {
+class PackageMapper(
+    private val eventMapper: PackageEventMapper
+) {
 
-    open fun toEntity(request: PackageRequest): ShippingPackage {
+    fun toEntity(request: CreatePackageRequest, generateTrackingId: Boolean = true): ShippingPackage {
         return ShippingPackage(
             type = request.type,
             weight = request.weight,
-            description = request.description,
-            cityFrom = request.cityFrom,
-            cityTo = request.cityTo,
-            events = request.events.map {
-                PackageEventsMapper().toEntity(request = it)
-            }
+            description = request.description.trim(),
+            cityFrom = request.cityFrom.trim().uppercase(),
+            cityTo = request.cityTo.trim().uppercase(),
+            trackingId = if (generateTrackingId) UUID.randomUUID().toString().substring(0, 8) else "",
+            estimatedDeliveryDate = request.createdAt.toLocalDate().atStartOfDay().plusDays(5),
+            events = listOf()
         ).apply {
             id = request.id
             createdAt = request.createdAt
@@ -25,20 +30,24 @@ open class PackageMapper {
         }
     }
 
-    open fun toResponse(entity: ShippingPackage): PackageResponse {
+    fun toResponse(entity: ShippingPackage): PackageResponse {
+        val sortedEvents = entity.events.sortedBy { it.createdAt }
+        val latestStatus = sortedEvents.lastOrNull()?.status ?: Status.PENDING
+        val eventResponses: List<PackageEventResponse> = sortedEvents.map { eventMapper.toResponse(it) }
+
         return PackageResponse(
+            id = entity.id,
+            createdAt = entity.createdAt,
+            updatedAt = entity.updatedAt,
+            trackingId = entity.trackingId,
             type = entity.type,
             weight = entity.weight,
             description = entity.description,
             cityFrom = entity.cityFrom,
             cityTo = entity.cityTo,
-            events = entity.events.map {
-                PackageEventsMapper().toResponse(entity = it)
-            }
-        ).apply {
-            id = entity.id
-            createdAt = entity.createdAt
-            updatedAt = entity.updatedAt
-        }
+            estimatedDeliveryDate = entity.estimatedDeliveryDate,
+            currentStatus = latestStatus,
+            events = eventResponses
+        )
     }
 }

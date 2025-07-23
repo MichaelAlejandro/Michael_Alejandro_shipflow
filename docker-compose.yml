@@ -1,11 +1,17 @@
-version: "3.8"
+version: '3.8'
 
 services:
   postgres:
-    image: postgres
+    image: postgres:15
+    container_name: shipflow_postgres
     environment:
       POSTGRES_DB: shipflow_db
       POSTGRES_USER: michael
       POSTGRES_PASSWORD: alejandro
     ports:
       - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
